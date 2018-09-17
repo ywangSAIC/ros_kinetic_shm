@@ -38,6 +38,10 @@
 #include <boost/thread/mutex.hpp>
 #include <boost/thread/recursive_mutex.hpp>
 
+#include "sharedmem_transport/sharedmem_util.h"
+#include <string.h>
+#include <stdio.h>
+
 namespace ros
 {
 
@@ -109,6 +113,9 @@ public:
    */
   size_t getNumSubscribers(const std::string &_topic);
   size_t getNumSubscriptions();
+
+  L_Subscription getAllSubscription();
+
 
   /**
    * \brief Return the number of publishers connected to this node on a particular topic
@@ -216,6 +223,8 @@ private:
   void getSubscriptionsCallback(XmlRpc::XmlRpcValue& params, XmlRpc::XmlRpcValue& result);
   void getPublicationsCallback(XmlRpc::XmlRpcValue& params, XmlRpc::XmlRpcValue& result);
 
+  void checkAndRemoveSHMSegment(std::string topic);
+
   bool isShuttingDown() { return shutting_down_; }
 
   boost::mutex subs_mutex_;
@@ -232,6 +241,8 @@ private:
   PollManagerPtr poll_manager_;
   ConnectionManagerPtr connection_manager_;
   XMLRPCManagerPtr xmlrpc_manager_;
+  std::map<std::string, std::set<std::string>> pub_cache_;
+  std::map<std::string, std::set<std::string>> sub_cache_;
 };
 
 } // namespace ros

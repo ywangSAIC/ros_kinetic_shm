@@ -1,7 +1,7 @@
 /*
  * Software License Agreement (BSD License)
  *
- *  Copyright (c) 2009, Willow Garage, Inc.
+ *  Copyright (c) 2017, The Apollo Authors.
  *  All rights reserved.
  *
  *  Redistribution and use in source and binary forms, with or without
@@ -32,36 +32,23 @@
  *  POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include "ros/topic.h"
-#include "ros/callback_queue.h"
+#ifndef CONFIG_COMM_H
+#define CONFIG_COMM_H
 
-namespace ros
+#include <iostream>
+#include <fstream>
+#include <vector> 
+#include <set>  
+
+namespace ros 
 {
-namespace topic
+
+struct ConfigComm
 {
+  std::set<std::string> topic_white_list;
+  int transport_mode;
+};
 
-void waitForMessageImpl(SubscribeOptions& ops, 
-			const boost::function<bool(void)>& ready_pred, 
-			NodeHandle& nh, ros::Duration timeout)
-{
-  ros::CallbackQueue queue;
-  ops.callback_queue = &queue;
-
-  ros::Subscriber sub = nh.subscribe(ops);
-
-  ros::Time end = ros::Time::now() + timeout;
-  while (!ready_pred() && nh.ok())
-  {
-    queue.callAvailable(ros::WallDuration(0.1));
-
-    if (!timeout.isZero() && ros::Time::now() >= end)
-    {
-      ops.callback_queue = NULL;
-      return;
-    }
-  }
-  ops.callback_queue = NULL;
 }
 
-} // namespace topic
-} // namespace ros
+#endif  // CONFIG_COMM_H

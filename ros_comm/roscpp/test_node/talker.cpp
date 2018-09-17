@@ -1,7 +1,7 @@
 /*
  * Software License Agreement (BSD License)
  *
- *  Copyright (c) 2009, Willow Garage, Inc.
+ *  Copyright (c) 2017, The Apollo Authors.
  *  All rights reserved.
  *
  *  Redistribution and use in source and binary forms, with or without
@@ -32,36 +32,41 @@
  *  POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include "ros/topic.h"
-#include "ros/callback_queue.h"
+// Simple talker demo that published std_msgs/Strings messages
+// to the 'chatter' topic
 
-namespace ros
+#include "ros/ros.h"
+#include "std_msgs/String.h"
+#include <sstream>
+
+
+int main(int argc, char **argv)
 {
-namespace topic
-{
 
-void waitForMessageImpl(SubscribeOptions& ops, 
-			const boost::function<bool(void)>& ready_pred, 
-			NodeHandle& nh, ros::Duration timeout)
-{
-  ros::CallbackQueue queue;
-  ops.callback_queue = &queue;
+  ros::init(argc, argv, "talker", ros::init_options::AnonymousName);
 
-  ros::Subscriber sub = nh.subscribe(ops);
+  ros::NodeHandle n;
+  ros::Publisher chatter_pub = n.advertise<std_msgs::String>("/chatter", 10);
 
-  ros::Time end = ros::Time::now() + timeout;
-  while (!ready_pred() && nh.ok())
+  int count = 0;
+  ros::Rate loop_rate(10);
+  while (ros::ok())
   {
-    queue.callAvailable(ros::WallDuration(0.1));
+    std_msgs::String msg;
+    std::stringstream ss;
+    ss << "Hello World " << count;
 
-    if (!timeout.isZero() && ros::Time::now() >= end)
-    {
-      ops.callback_queue = NULL;
-      return;
-    }
+    msg.data = ss.str();
+   
+    ROS_INFO("%s", msg.data.c_str());
+    chatter_pub.publish(msg);
+
+    ros::spinOnce();
+    loop_rate.sleep();
+
+    ++count;
   }
-  ops.callback_queue = NULL;
+
+  return 0;
 }
 
-} // namespace topic
-} // namespace ros

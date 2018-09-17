@@ -1,7 +1,7 @@
 /*
  * Software License Agreement (BSD License)
  *
- *  Copyright (c) 2009, Willow Garage, Inc.
+ *  Copyright (c) 2017, The Apollo Authors.
  *  All rights reserved.
  *
  *  Redistribution and use in source and binary forms, with or without
@@ -31,37 +31,33 @@
  *  ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  *  POSSIBILITY OF SUCH DAMAGE.
  */
+ 
+// Simple talker demo that listens to std_msgs/Strings published 
+// to the 'chatter' topic
 
-#include "ros/topic.h"
-#include "ros/callback_queue.h"
+#include "ros/ros.h"
+#include "std_msgs/String.h"
 
-namespace ros
+ros::Subscriber _sub;
+
+void chatterCallback(const std_msgs::String  msg) 
 {
-namespace topic
-{
-
-void waitForMessageImpl(SubscribeOptions& ops, 
-			const boost::function<bool(void)>& ready_pred, 
-			NodeHandle& nh, ros::Duration timeout)
-{
-  ros::CallbackQueue queue;
-  ops.callback_queue = &queue;
-
-  ros::Subscriber sub = nh.subscribe(ops);
-
-  ros::Time end = ros::Time::now() + timeout;
-  while (!ready_pred() && nh.ok())
-  {
-    queue.callAvailable(ros::WallDuration(0.1));
-
-    if (!timeout.isZero() && ros::Time::now() >= end)
-    {
-      ops.callback_queue = NULL;
-      return;
-    }
-  }
-  ops.callback_queue = NULL;
+  ROS_INFO_STREAM("I heard:" << msg.data);
 }
 
-} // namespace topic
-} // namespace ros
+void fun(ros::NodeHandle n) {
+  _sub = n.subscribe("/chatter", 10, chatterCallback);
+}
+
+int main(int argc, char **argv)
+{
+  ros::init(argc, argv, "listener", ros::init_options::AnonymousName);
+
+  ros::NodeHandle n;
+
+  fun(n);
+
+  ros::spin();
+
+  return 0;
+}

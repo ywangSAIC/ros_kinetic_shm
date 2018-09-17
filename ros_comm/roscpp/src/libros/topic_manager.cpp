@@ -145,6 +145,28 @@ void TopicManager::shutdown()
   }
 }
 
+void TopicManager::checkAndRemoveSHMSegment(std::string topic)
+{
+  if (!ros::ok())
+  {
+    return;
+  }
+
+  // Get node info
+  std::set<std::string>& pi = pub_cache_[topic];
+  std::set<std::string>& si = sub_cache_[topic];
+
+  // Count the num
+  int count = pi.size() + si.size();
+
+  // Remove segment
+  if (count == 1)
+  {
+    sharedmem_transport::SharedMemoryUtil sharedmem_util;
+    sharedmem_util.remove_segment(topic.c_str());
+  }
+}
+
 void TopicManager::processPublishQueues()
 {
   boost::recursive_mutex::scoped_lock lock(advertised_topics_mutex_);
@@ -187,6 +209,11 @@ PublicationPtr TopicManager::lookupPublication(const std::string& topic)
   boost::recursive_mutex::scoped_lock lock(advertised_topics_mutex_);
 
   return lookupPublicationWithoutLock(topic);
+}
+
+L_Subscription  TopicManager::getAllSubscription()
+{
+  return subscriptions_ ;
 }
 
 bool md5sumsMatch(const std::string& lhs, const std::string& rhs)
@@ -394,7 +421,7 @@ bool TopicManager::advertise(const AdvertiseOptions& ops, const SubscriberCallba
   args[2] = ops.datatype;
   args[3] = xmlrpc_manager_->getServerURI();
   master::execute("registerPublisher", args, result, payload, true);
-
+  pub_cache_[args[1]].insert(args[3]);
   return true;
 }
 
@@ -449,12 +476,18 @@ bool TopicManager::unadvertise(const std::string &topic, const SubscriberCallbac
 
 bool TopicManager::unregisterPublisher(const std::string& topic)
 {
+  checkAndRemoveSHMSegment(topic);
   XmlRpcValue args, result, payload;
   args[0] = this_node::getName();
   args[1] = topic;
   args[2] = xmlrpc_manager_->getServerURI();
   master::execute("unregisterPublisher", args, result, payload, false);
-
+  
+  auto it = pub_cache_[args[1]].find(args[2]);
+  if (it != pub_cache_[args[1]].end()) 
+  {
+    pub_cache_[args[1]].erase(it);
+  }
   return true;
 }
 
@@ -478,7 +511,7 @@ bool TopicManager::registerSubscriber(const SubscriptionPtr& s, const string &da
   args[1] = s->getName();
   args[2] = datatype;
   args[3] = xmlrpc_manager_->getServerURI();
-
+  sub_cache_[args[1]].insert(args[3]);
   if (!master::execute("registerSubscriber", args, result, payload, true))
   {
     return false;
@@ -536,11 +569,17 @@ bool TopicManager::registerSubscriber(const SubscriptionPtr& s, const string &da
 
 bool TopicManager::unregisterSubscriber(const string &topic)
 {
+  checkAndRemoveSHMSegment(topic);
+
   XmlRpcValue args, result, payload;
   args[0] = this_node::getName();
   args[1] = topic;
   args[2] = xmlrpc_manager_->getServerURI();
-
+  auto it = sub_cache_[args[1]].find(args[2]);
+  if (it != sub_cache_[args[1]].end()) 
+  {
+    sub_cache_[args[1]].erase(it);
+  }
   master::execute("unregisterSubscriber", args, result, payload, false);
 
   return true;
